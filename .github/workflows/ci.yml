@@ -44,6 +44,32 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+      # wxdragon-sys downloads wxWidgets and builds it with CMake into target/release, which takes
+      # most of a cold build. rust-cache wipes everything in target/release except Cargo's own
+      # directories before saving, so these get their own cache, keyed on the wxdragon-sys
+      # version alone so that other dependency updates don't rebuild wxWidgets. It has to come
+      # after rust-cache: post steps run in reverse, so this one saves before rust-cache cleans up.
+      - name: Find the wxdragon-sys version
+        id: wxdragon
+        shell: bash
+        run: echo "key=$(grep -A2 'name = "wxdragon-sys"' Cargo.lock | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+      - name: Cache wxWidgets build
+        uses: actions/cache@v6
+        with:
+          path: |
+            target/release/wxWidgets
+            target/release/wxwidgets_cmake_build
+            target/release/wxdragon_sys_cmake_build
+          key: wx-${{ runner.os }}-${{ steps.wxdragon.outputs.key }}
+      # If the Rust cache hit but the wxWidgets one didn't, the restored fingerprint says
+      # wxdragon-sys is built while its libraries are missing, and linking fails. Force it to
+      # rebuild.
+      - name: Rebuild wxdragon-sys if its CMake output is missing
+        shell: pwsh
+        run: |
+          if (-not (Test-Path target/release/wxwidgets_cmake_build/lib)) {
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue target/release/build/wxdragon-sys-*, target/release/.fingerprint/wxdragon-sys-*
+          }
       # Everything runs in release, so wxWidgets and the dependencies are built once for clippy,
       # the tests, the build and the zip.
       - name: Run clippy
