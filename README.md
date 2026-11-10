@@ -131,3 +131,7 @@ cargo test
 - Keep ElevenLabs calls inside `src/api`, and keep network and audio work off the GUI thread.
 - Add a test for logic that can run without the interface.
 - Never include an API key in a commit, an issue or a log.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
