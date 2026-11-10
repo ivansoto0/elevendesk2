@@ -601,7 +601,7 @@ mod tests {
 	fn parses_dub_language_without_outputs() {
 		let language = parse_dub_language(&json!({"language_id": "l1", "target_language": "es", "status": "pending"}));
 		assert_eq!(language.id, "l1");
-		assert!(language.output_url.is_empty());
+		assert_eq!(language.output_url, "");
 	}
 }
 

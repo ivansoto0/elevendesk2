@@ -26,7 +26,7 @@ pub const OUTPUT_FORMATS: &[OutputFormat] = &[
 ];
 
 pub fn pcm_from_le_bytes(bytes: &[u8]) -> Vec<i16> {
-	bytes.chunks_exact(2).map(|pair| i16::from_le_bytes([pair[0], pair[1]])).collect()
+	bytes.as_chunks::<2>().0.iter().map(|pair| i16::from_le_bytes(*pair)).collect()
 }
 
 // reason: sample-index and interpolation maths on audio lengths far below 2^52.
@@ -179,14 +179,14 @@ mod tests {
 
 	#[test]
 	fn resample_with_a_zero_rate_is_empty_not_a_panic() {
-		assert!(resample(&tone(100), 0, 8_000).is_empty());
-		assert!(resample(&tone(100), 24_000, 0).is_empty());
+		assert_eq!(resample(&tone(100), 0, 8_000), Vec::<i16>::new());
+		assert_eq!(resample(&tone(100), 24_000, 0), Vec::<i16>::new());
 	}
 
 	#[test]
 	fn odd_byte_counts_drop_the_dangling_byte() {
 		assert_eq!(pcm_from_le_bytes(&[1, 0, 2, 0, 9]), [1, 2]);
-		assert!(pcm_from_le_bytes(&[7]).is_empty());
+		assert_eq!(pcm_from_le_bytes(&[7]), Vec::<i16>::new());
 	}
 
 	#[test]
