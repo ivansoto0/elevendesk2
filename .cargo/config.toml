@@ -1,0 +1,4 @@
+[env]
+# wxdragon-sys turns off TLS certificate checks for the WebView2 SDK download on Windows
+# unless this is set. Keep the download verified.
+CMAKE_TLS_VERIFY = "1"

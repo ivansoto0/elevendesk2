@@ -1,0 +1,45 @@
+[package]
+name = "elevendesk2"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "An accessible native desktop client for ElevenLabs"
+
+[dependencies]
+bytes = "1.12.1"
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+dirs = { version = "7.0.0", default-features = false }
+elevenlabs_rs = { version = "0.7.1", features = ["genai", "admin"] }
+futures-util = { version = "0.3.34", default-features = false }
+hound = "3.5.1"
+homeport = "0.1.0"
+live-region = "0.3.3"
+mp3lame-encoder = "0.3.0"
+open = "5.4.5"
+reqwest = { version = "0.13.5", default-features = false, features = ["json", "multipart", "native-tls", "stream"] }
+rodio = "0.23.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util"] }
+wxdragon = "0.9.24"
+
+# Speed first (opt-level 3, fat LTO, one codegen unit); abort on panic drops the unwinding tables.
+# For the smallest possible exe, switch opt-level to "z".
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
+
+# CI runs clippy with -D warnings, so every one of these is an error there.
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Paths are imported, never written out from the crate root.
+absolute_paths = "warn"
+# A private application: no API documentation to keep complete.
+doc_markdown = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+too_many_lines = "allow"

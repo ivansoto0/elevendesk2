@@ -1,0 +1,67 @@
+name: CI
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+# Pushing again while a run is going makes that run pointless, so the new one replaces it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+jobs:
+  fmt:
+    name: Format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # rustfmt.toml's import grouping and merging are nightly-only options.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+          components: rustfmt
+      - name: Check formatting
+        run: cargo +nightly fmt --check
+  build:
+    name: Clippy, tests and build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: clippy
+      - name: Install CMake and Ninja
+        run: choco install cmake ninja -y
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      # Everything runs in release, so wxWidgets and the dependencies are built once for clippy,
+      # the tests, the build and the zip.
+      - name: Run clippy
+        run: cargo clippy --release --all-targets -- -D warnings
+      # The tests use a local mock server, so they need no network or API key.
+      - name: Run tests
+        run: cargo test --release
+      - name: Build
+        run: cargo build --release
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/elevendesk2 | Out-Null
+          Copy-Item target/release/elevendesk2.exe, README.md dist/elevendesk2
+          Compress-Archive -Path dist/elevendesk2 -DestinationPath dist/elevendesk2-x64.zip
+      - name: Upload the zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: elevendesk2-x64
+          path: dist/elevendesk2-x64.zip
+          retention-days: 30
