@@ -1,6 +1,10 @@
 name: CI
 on:
   push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
   pull_request:
     branches:
       - main
@@ -83,7 +87,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist/elevendesk2 | Out-Null
-          Copy-Item target/release/elevendesk2.exe, README.md dist/elevendesk2
+          Copy-Item target/release/elevendesk2.exe, README.md, LICENSE dist/elevendesk2
           Compress-Archive -Path dist/elevendesk2 -DestinationPath dist/elevendesk2-x64.zip
       - name: Upload the zip
         uses: actions/upload-artifact@v7
@@ -91,3 +95,37 @@ jobs:
           name: elevendesk2-x64
           path: dist/elevendesk2-x64.zip
           retention-days: 30
+  release:
+    name: Publish the release
+    needs: [fmt, build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      # A tag that disagrees with Cargo.toml would ship a build that reports the wrong version.
+      - name: Check the tag matches the crate version
+        run: |
+          version=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match Cargo.toml version $version" >&2
+            exit 1
+          fi
+      - name: Download the zip
+        uses: actions/download-artifact@v8
+        with:
+          name: elevendesk2-x64
+          path: dist
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'NOTES'
+          Windows build of ElevenDesk 2. Unzip it anywhere and run `elevendesk2.exe`; enter your ElevenLabs API key in Preferences on first launch.
+
+          The executable is not code-signed, so Windows SmartScreen may warn you the first time you run it.
+          NOTES
+          flags=""
+          case "$GITHUB_REF_NAME" in v0.*) flags="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/elevendesk2-x64.zip             --title "ElevenDesk 2 ${GITHUB_REF_NAME#v}"             --notes-file notes.md             --verify-tag             $flags
